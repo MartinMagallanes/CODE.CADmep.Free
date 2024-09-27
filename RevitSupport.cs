@@ -1,13 +1,39 @@
-﻿using System;
+﻿using Autodesk.AutoCAD.Runtime;
+using Autodesk.Fabrication;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CODE.CADmep.Free
 {
     public static class RevitSupport
     {
+        [CommandMethod("RevitSupportReport")]
+        public static void RevitSupportReport()
+        {
+            UI.StartTimer();
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("PATNO,ITEM NAME,2016,2017,2018,2019,2020,2021,2022,2023,2024");
+            Dictionary<int, string> patterns = new Dictionary<int, string>();
+            IEnumerable<Item> items = DiskDatabase.GetDatabaseItems();
+            foreach (Item itm in DiskDatabase.GetDatabaseItems())
+            {
+                int patNo = itm.PatternNumber;
+                if (!patterns.ContainsKey(patNo))
+                {
+                    patterns.Add(patNo, $"{patNo.IsSupportedIn(2016)},{patNo.IsSupportedIn(2017)},{patNo.IsSupportedIn(2018)},{patNo.IsSupportedIn(2019)},{patNo.IsSupportedIn(2020)},{patNo.IsSupportedIn(2021)},{patNo.IsSupportedIn(2022)},{patNo.IsSupportedIn(2023)},{patNo.IsSupportedIn(2024)}");
+                }
+                sb.AppendLine($"{patNo},{itm.GetPath(true)},{patterns[patNo]}");
+            }
+            string file = Path.Combine(DiskDatabase.ItemsPath, "RevitSupportReport.csv");
+            using (StreamWriter streamWriter = new StreamWriter(file))
+            {
+                streamWriter.Write(sb.ToString());
+            }
+            Sys.OpenFileInApp(file);
+            UI.Popup($"{items.Count()} items checked for RevitSupportReport.csv. Duration: {UI.StopTimer()}.");
+        }
         public static string IsSupportedIn(this int patNo, int year)
         {
             return patNo.IsSupportedInRevit(year) ? "Yes" : patNo.IsRiskInRevit(year) ? "Risk" : "No";
